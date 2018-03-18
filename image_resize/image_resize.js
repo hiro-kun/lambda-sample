@@ -1,13 +1,13 @@
 'use strict';
 
-var im = require('imagemagick');
-var fs = require('fs');
-var aws = require('aws-sdk');
-var s3 = new aws.S3({ apiVersion: '2006-03-01' });
+const im = require('imagemagick');
+const fs = require('fs');
+const aws = require('aws-sdk');
+const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 
 // 最後に呼ばれる
-var postProcessResource = function(resource, fn) {
-    var ret = null;
+const postProcessResource = function(resource, fn) {
+    let ret = null;
     if (resource) {
         if (fn) {
             ret = fn(resource);
@@ -22,7 +22,7 @@ var postProcessResource = function(resource, fn) {
 };
 
 
-var resizeImage = function(event, context) {
+const resizeImage = function(event, context) {
 
     // 縮小サイズ決定
     event.width = 200;
@@ -69,16 +69,14 @@ exports.handler = function(event, context) {
     event.bucket = event.Records[0].s3.bucket.name;
 
     // 画像ファイル名取得
-    var key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
-    var params = {
+    const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
+    const params = {
         Bucket: event.bucket,
         Key: key
     };
 
-    var reg = /(.*)(?:\.([^.]+$))/;
-    var match =  key.match(reg);
-
-    console.log(match[1]);
+    const reg = /(.*)(?:\.([^.]+$))/;
+    const match =  key.match(reg);
 
     // _thumのついているファイルは処理しない(処理するとS3に無限にアップロードされる)
     if(match[1].lastIndexOf('_thum') != -1){
