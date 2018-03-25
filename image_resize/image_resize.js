@@ -6,7 +6,7 @@ const aws = require('aws-sdk');
 const path = require('path');
 const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 
-const resize_image = (image_resize_params, context) => new Promise((resolve, reject) => {
+const resize_image = (image_resize_params) => new Promise((resolve, reject) => {
 
     // Lambdaファンクションの動作環境での作業場所
     const dst_path = '/tmp/resized.';
@@ -18,37 +18,38 @@ const resize_image = (image_resize_params, context) => new Promise((resolve, rej
       height: image_resize_params.height
     };
 
-    try {
-        im.resize(im_params, (err, stdout, stderr) => {
-            if (err) {
-                throw err;
-            } else {
-                console.log('Resize operation completed successfully');
+    im.resize(im_params, (err, stdout, stderr) => {
+        if (err) reject(err);
 
-            const params = {
-                Bucket: image_resize_params.buket_name,
-                Key: image_resize_params.output_file_name,
-                Body: new Buffer(fs.readFileSync(dst_path)),
-                ContentType: 'image/jpeg'
-            };
+        console.log('Resize operation completed successfully');
 
-                resolve(params);
-            }
-        });
-    } catch (err) {
-        console.log('Resize operation failed:', err);
-        context.fail(err);
-    }
+        const resize_file_param = {
+            Bucket: image_resize_params.buket_name,
+            Key: image_resize_params.output_file_name,
+            Body: new Buffer(fs.readFileSync(dst_path)),
+            ContentType: 'image/jpeg'
+        };
+
+        resolve(resize_file_param);
+    });
 });
 
-exports.handler = (event, context) => {
+const put_s3 = (params) => new Promise((resolve, reject) => {
+    s3.putObject(params, (err, data) => {
+        if (err) reject(err);
+
+        resolve('hogehuga~');
+  });
+});
+
+exports.handler = (event, context, callback) => {
 
     // S3から渡ってくるバケットの名前の取得
     const baket_name = event.Records[0].s3.bucket.name;
     // 画像ファイル名取得
     const image_file_name = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
 
-    // _thumのついているファイルは処理しない(処理するとS3に無限にアップロードされる)
+    // _resizeのついているファイルは処理しない(処理するとS3に無限にアップロードされる)
     if (image_file_name.lastIndexOf('_resize') != -1) {
         console.log('skip');
         return;
@@ -59,13 +60,15 @@ exports.handler = (event, context) => {
     // 変換後ファイル名
     const output_file_name = file_name + '_resize' + file_ext;
 
-    const params = {
+    const img_param = {
         Bucket: baket_name,
         Key: image_file_name
     };
 
     // S3ファイル名取得
-    s3.getObject(params, (err, data) => {
+    s3.getObject(img_param, (err, data) => {
+        if (err) return callback(err);
+
         const image_resize_params = {
             buket_name: baket_name,
             output_file_name: output_file_name,
@@ -73,17 +76,17 @@ exports.handler = (event, context) => {
             width: 200,
             height: 200
         };
-        resize_image(image_resize_params, context)
-            .then((params) => {
-              // S3にputする
-              s3.putObject(params, (err, data) => {
-                  console.log(err);
-                  console.log(data);
-                  resolve("success");
-              });
-            })
-            .then((message) => {
-                context.succeed();
+
+        resize_image(image_resize_params).then((resize_file_param) => {
+            put_s3(resize_file_param).then((res) => {
+                return res;
+            }).then((res) => {
+                callback(null, res);
+            }).catch((err) => {
+                callback(err);
             });
+        }).catch((err) => {
+            callback(err);
+        });
     });
 };
