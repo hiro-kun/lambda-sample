@@ -37,6 +37,7 @@ const resize_image = (image_resize_params) => new Promise((resolve, reject) => {
 const put_s3 = (params) => new Promise((resolve, reject) => {
     s3.putObject(params, (err, data) => {
         if (err) reject(err);
+
         resolve();
   });
 });
