@@ -58,13 +58,13 @@ exports.handler = (event, context, callback) => {
     // 変換後ファイル名
     const output_file_name = file_name + '_resize' + file_ext;
 
-    const img_param = {
+    const event_image_param = {
         Bucket: buket_name,
         Key: image_file_name
     };
 
     // S3ファイル名取得
-    s3.getObject(img_param, (err, data) => {
+    s3.getObject(event_image_param, (err, data) => {
         if (err) return callback(err);
 
         const image_resize_params = {
