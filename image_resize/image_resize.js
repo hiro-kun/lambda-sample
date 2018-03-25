@@ -37,15 +37,13 @@ const resize_image = (image_resize_params) => new Promise((resolve, reject) => {
 const put_s3 = (params) => new Promise((resolve, reject) => {
     s3.putObject(params, (err, data) => {
         if (err) reject(err);
-
-        resolve('hogehuga~');
+        resolve();
   });
 });
 
 exports.handler = (event, context, callback) => {
-
     // S3から渡ってくるバケットの名前の取得
-    const baket_name = event.Records[0].s3.bucket.name;
+    const buket_name = event.Records[0].s3.bucket.name;
     // 画像ファイル名取得
     const image_file_name = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
 
@@ -61,7 +59,7 @@ exports.handler = (event, context, callback) => {
     const output_file_name = file_name + '_resize' + file_ext;
 
     const img_param = {
-        Bucket: baket_name,
+        Bucket: buket_name,
         Key: image_file_name
     };
 
@@ -70,7 +68,7 @@ exports.handler = (event, context, callback) => {
         if (err) return callback(err);
 
         const image_resize_params = {
-            buket_name: baket_name,
+            buket_name: buket_name,
             output_file_name: output_file_name,
             base64_image: new Buffer(data.Body).toString('base64'),
             width: 200,
@@ -79,13 +77,13 @@ exports.handler = (event, context, callback) => {
 
         resize_image(image_resize_params).then((resize_file_param) => {
             put_s3(resize_file_param).then((res) => {
-                return res;
-            }).then((res) => {
                 callback(null, res);
             }).catch((err) => {
+                console.log("Put image error.");
                 callback(err);
             });
         }).catch((err) => {
+            console.log("Image resize error.");
             callback(err);
         });
     });
