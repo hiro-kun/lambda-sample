@@ -4,18 +4,26 @@ const im = require('imagemagick');
 const fs = require('fs');
 const aws = require('aws-sdk');
 const path = require('path');
+
+/**
+ * S3-S3間での画像リサイズ
+ *
+ * @author ono-hiroshi
+ * @since 2018-03-27
+ */
+
 const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 
 const resize_image = (image_resize_params) => new Promise((resolve, reject) => {
 
     // Lambdaファンクションの動作環境での作業場所
-    const dst_path = '/tmp/resized.';
+    const dst_path = '/tmp/' + image_resize_params.output_file_name;
 
     const im_params = {
-      srcData: new Buffer(image_resize_params.base64_image, 'base64'),
-      dstPath: dst_path,
-      width: image_resize_params.width,
-      height: image_resize_params.height
+        srcData: new Buffer(image_resize_params.base64_image, 'base64'),
+        dstPath: dst_path,
+        width: image_resize_params.width,
+        height: image_resize_params.height
     };
 
     im.resize(im_params, (err, stdout, stderr) => {
@@ -42,11 +50,13 @@ const put_s3 = (params) => new Promise((resolve, reject) => {
   });
 });
 
-exports.handler = (event, context, callback) => {
-    // S3から渡ってくるバケットの名前の取得
-    const buket_name = event.Records[0].s3.bucket.name;
+const process = (s3Event) => new Promise((resolve, reject) => {
+    console.log('Lambda started.');
+
+    // バケット名の取得
+    const buket_name = s3Event.bucket.name;
     // 画像ファイル名取得
-    const image_file_name = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
+    const image_file_name = decodeURIComponent(s3Event.object.key.replace(/\+/g, ' '));
 
     // _resizeのついているファイルは処理しない(処理するとS3に無限にアップロードされる)
     if (image_file_name.lastIndexOf('_resize') != -1) {
@@ -66,26 +76,39 @@ exports.handler = (event, context, callback) => {
 
     // S3ファイル名取得
     s3.getObject(event_image_param, (err, data) => {
+
         if (err) return callback(err);
 
         const image_resize_params = {
             buket_name: buket_name,
             output_file_name: output_file_name,
             base64_image: new Buffer(data.Body).toString('base64'),
-            width: 200,
-            height: 200
+            width: 500,
+            height: 500
         };
 
         resize_image(image_resize_params).then((resize_file_param) => {
             put_s3(resize_file_param).then((res) => {
-                callback(null, res);
+                console.log('Image resize finish.');
             }).catch((err) => {
+                console.log(err);
                 console.log("Put image error.");
-                callback(err);
             });
         }).catch((err) => {
+            console.log(err);
             console.log("Image resize error.");
-            callback(err);
         });
+    });
+});
+
+exports.handler = (event, context, callback) => {
+    const s3Event = event.Records[0].s3;
+
+    process(s3Event).then(() => {
+       console.log('all finish.');
+       callback(null, res);
+    }).catch((err) => {
+       console.log(err);
+       callback(err);
     });
 };
