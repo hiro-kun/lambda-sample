@@ -103,9 +103,9 @@ exports.handler = (event, context, callback) => {
     const s3Event = event.Records[0].s3;
 
     process(s3Event).then(() => {
-        console.log('all finish.');
+        console.log('All finish.');
     }).catch((err) => {
-        console.log('error');
+        console.log('Error.');
         console.log(err);
         callback(err);
     });
