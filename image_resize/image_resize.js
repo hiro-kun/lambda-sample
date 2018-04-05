@@ -1,4 +1,4 @@
-'use strict';
+
 
 const im = require('imagemagick');
 const fs = require('fs');
@@ -12,37 +12,37 @@ const path = require('path');
  * @author ono-hiroshi
  * @since 2018-04-05
  */
+
 const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 
-const resize_image = (image_resize_params) => new Promise((resolve, reject) => {
-
+const resizeImage = imageResizeParams => new Promise((resolve, reject) => {
     // Lambdaファンクションの動作環境での作業場所
-    const dst_path = '/tmp/' + image_resize_params.output_file_name;
+    const dstPath = `/tmp/${imageResizeParams.outputFileName}`;
 
-    const im_params = {
-        srcData: new Buffer(image_resize_params.base64_image, 'base64'),
-        dstPath: dst_path,
-        width: image_resize_params.width,
-        height: image_resize_params.height
+    const imParams = {
+        srcData: new Buffer(imageResizeParams.base64Image, 'base64'),
+        dstPath: dstPath,
+        width: imageResizeParams.width,
+        height: imageResizeParams.height,
     };
 
-    im.resize(im_params, (err, stdout, stderr) => {
+    im.resize(imParams, (err, stdout, stderr) => {
         if (err) reject(err);
 
         console.log('Resize operation completed successfully');
 
-        const resize_file_param = {
-            Bucket: image_resize_params.buket_name,
-            Key: image_resize_params.output_file_name,
-            Body: new Buffer(fs.readFileSync(dst_path)),
-            ContentType: 'image/jpeg'
+        const resizeFileParam = {
+            Bucket: imageResizeParams.buketName,
+            Key: imageResizeParams.outputFileName,
+            Body: new Buffer(fs.readFileSync(dstPath)),
+            ContentType: 'image/jpeg',
         };
 
-        resolve(resize_file_param);
+        resolve(resizeFileParam);
     });
 });
 
-const put_s3 = (params) => new Promise((resolve, reject) => {
+const putS3 = params => new Promise((resolve, reject) => {
     s3.putObject(params, (err, data) => {
         if (err) reject(err);
 
@@ -50,7 +50,7 @@ const put_s3 = (params) => new Promise((resolve, reject) => {
     });
 });
 
-const get_s3 = (params) => new Promise((resolve, reject) => {
+const getS3 = params => new Promise((resolve, reject) => {
     s3.getObject(params, (err, data) => {
         if (err) reject(err);
 
@@ -58,46 +58,46 @@ const get_s3 = (params) => new Promise((resolve, reject) => {
     });
 });
 
-const process = async(s3Event) => {
+const process = async (s3Event) => {
     console.log('Lambda started.');
 
     // バケット名の取得
-    const buket_name = s3Event.bucket.name;
+    const buketName = s3Event.bucket.name;
     // 画像ファイル名取得
-    const image_file_name = decodeURIComponent(s3Event.object.key.replace(/\+/g, ' '));
+    const imageFileName = decodeURIComponent(s3Event.object.key.replace(/\+/g, ' '));
 
     // _resizeのついているファイルは処理しない(処理するとS3に無限にアップロードされる)
-    if (image_file_name.lastIndexOf('_resize') != -1) {
+    if (imageFileName.lastIndexOf('_resize') != -1) {
         console.log('skip');
         return;
     }
 
-    const file_name = path.parse(image_file_name).name;
-    const file_ext = path.parse(image_file_name).ext;
+    const fileName = path.parse(imageFileName).name;
+    const fileExt = path.parse(imageFileName).ext;
     // 変換後ファイル名
-    const output_file_name = file_name + '_resize' + file_ext;
+    const outputFileName = `${fileName}_resize${fileExt}`;
 
-    const event_image_param = {
-        Bucket: buket_name,
-        Key: image_file_name
+    const eventImageParam = {
+        Bucket: buketName,
+        Key: imageFileName,
     };
 
-    const image_info = await get_s3(event_image_param);
+    const imageInfo = await getS3(eventImageParam);
 
-    const image_resize_params = {
-        buket_name: buket_name,
-        output_file_name: output_file_name,
-        base64_image: new Buffer(image_info.Body).toString('base64'),
+    const imageResizeParams = {
+        buketName,
+        outputFileName,
+        base64Image: new Buffer(imageInfo.Body).toString('base64'),
         width: 500,
-        height: 500
+        height: 500,
     };
 
     // 画像リサイズ
-    const resize_file_param = await resize_image(image_resize_params)
+    const resizeFileParam = await resizeImage(imageResizeParams);
 
     // 画像UP
-    await put_s3(resize_file_param)
-}
+    await putS3(resizeFileParam);
+};
 
 exports.handler = (event, context, callback) => {
     const s3Event = event.Records[0].s3;
@@ -105,7 +105,7 @@ exports.handler = (event, context, callback) => {
     process(s3Event).then(() => {
         console.log('all finish.');
     }).catch((err) => {
-        console.log("error");
+        console.log('error');
         console.log(err);
         callback(err);
     });
