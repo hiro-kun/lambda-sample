@@ -4,6 +4,7 @@ const im = require('imagemagick');
 const fs = require('fs');
 const aws = require('aws-sdk');
 const path = require('path');
+const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 
 /**
  * S3-S3間での画像リサイズ
@@ -13,8 +14,14 @@ const path = require('path');
  * @since 2018-04-05
  */
 
-const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 
+
+/**
+*  画像リサイズ実行
+*
+*  @param {Array} imageResizeParams (リサイズ対象画像情報)
+*  @return {Array} resizeFileParam (リサイズ済画像情報)
+*/
 const resizeImage = imageResizeParams => new Promise((resolve, reject) => {
     // Lambdaファンクションの動作環境での作業場所
     const dstPath = `/tmp/${imageResizeParams.outputFileName}`;
@@ -42,6 +49,12 @@ const resizeImage = imageResizeParams => new Promise((resolve, reject) => {
     });
 });
 
+/**
+*  S3へ画像アップロード
+*
+*  @param {Array} params (アップロード画像情報)
+*  @return void
+*/
 const putS3 = params => new Promise((resolve, reject) => {
     s3.putObject(params, (err, data) => {
         if (err) reject(err);
@@ -50,6 +63,12 @@ const putS3 = params => new Promise((resolve, reject) => {
     });
 });
 
+/**
+*  S3から画像取得
+*
+*  @param {Array} params (S3イベントから取得した画像情報)
+*  @return {Array} resizeFileParam (S3から取得した画像情報)
+*/
 const getS3 = params => new Promise((resolve, reject) => {
     s3.getObject(params, (err, data) => {
         if (err) reject(err);
@@ -58,6 +77,12 @@ const getS3 = params => new Promise((resolve, reject) => {
     });
 });
 
+/**
+*  実行制御
+*
+*  @param {Object} s3Event (S3イベント)
+*  @return void
+*/
 const process = async (s3Event) => {
     console.log('Lambda started.');
 
