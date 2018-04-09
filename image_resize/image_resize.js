@@ -128,7 +128,7 @@ const process = async (s3Event) => {
     const resizeFileParam = await resizeImage(imageResizeParams);
 
     // 画像UP
-    await putS3(resizeFileParam);
+    putS3(resizeFileParam);
 };
 
 exports.handler = (event, context, callback) => {
