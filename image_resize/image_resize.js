@@ -4,16 +4,23 @@ const im = require('imagemagick');
 const fs = require('fs');
 const aws = require('aws-sdk');
 const path = require('path');
-const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 
 /**
  * S3-S3間での画像リサイズ
- * ※local環境で実行する場合はimagemagickをインストールする事
+ * ※local環境で実行する場合はimagemagickのインストールが必要
  *
  * @author ono-hiroshi
  * @since 2018-04-05
  */
 
+
+aws.config.update({
+    accessKeyId: '',
+    secretAccessKey: '',
+    region: '',
+});
+
+const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 
 
 /**
